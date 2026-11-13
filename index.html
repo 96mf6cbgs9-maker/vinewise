@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Vinewise</title>
+  <meta name="claude:viewport-fit-sides" content="cover">
+  <meta name="theme-color" content="#8fce62">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌸</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <button class="icon-btn" id="btn-menu" aria-label="Menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+      <button class="icon-btn" id="btn-daily" aria-label="Daily Garden">
+        <svg class="ico-daily" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3.5"/><path d="M8 3v3.5M16 3v3.5M3.5 9.8h17"/><g stroke="none" fill="#ff6fa3"><circle cx="12" cy="13.2" r="1.35"/><circle cx="12" cy="17" r="1.35"/><circle cx="10.1" cy="15.1" r="1.35"/><circle cx="13.9" cy="15.1" r="1.35"/></g><circle cx="12" cy="15.1" r="1.05" fill="#ffc23d" stroke="none"/></svg>
+        <svg class="ico-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
+        <i class="dot" id="daily-dot" hidden></i>
+      </button>
+      <div class="title">
+        <div class="title-kicker" id="title-kicker" hidden></div>
+        <div class="level-label" id="level-label">Level 1</div>
+        <div class="progress" aria-hidden="true"><div class="progress-fill" id="progress-fill"></div></div>
+      </div>
+      <button class="coin-pill" id="btn-coins" aria-label="Coins and shop">
+        <span class="coin" aria-hidden="true"></span><span id="coin-count">100</span>
+      </button>
+    </header>
+
+    <main id="stage">
+      <canvas id="board"></canvas>
+      <div id="toast" class="toast" hidden></div>
+      <div id="hand" class="hand" hidden aria-hidden="true">👆</div>
+    </main>
+
+    <div class="boosters" id="boosters" hidden>
+      <button class="booster" id="bst-seed" data-item="seed" aria-label="Flower Seed"><span class="b-icon">🌸</span><span class="b-name">Flower</span><i class="b-count" id="cnt-seed">1</i></button>
+      <button class="booster" id="bst-shears" data-item="shears" aria-label="Shears"><span class="b-icon">✂️</span><span class="b-name">Shears</span><i class="b-count" id="cnt-shears">1</i></button>
+      <button class="booster" id="bst-breeze" data-item="breeze" aria-label="Breeze"><span class="b-icon">🍃</span><span class="b-name">Breeze</span><i class="b-count" id="cnt-breeze">1</i></button>
+    </div>
+
+    <footer class="toolbar">
+      <button class="tool" id="btn-restart">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.5v4h4"/></svg>
+        <span>Restart</span>
+      </button>
+      <button class="tool" id="btn-undo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>
+        <span>Undo</span>
+      </button>
+      <button class="tool" id="btn-hint">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/></svg>
+        <span>Hint</span><i class="ad" id="hint-badge">▶ AD</i>
+      </button>
+    </footer>
+  </div>
+
+  <div class="overlay" id="win" hidden>
+    <div class="card">
+      <div class="card-emoji">🌸</div>
+      <h2>Garden in bloom!</h2>
+      <p id="win-sub">Level 1 complete</p>
+      <p class="coins-earned" id="win-coins" hidden></p>
+      <button class="btn primary" id="btn-next">Next garden</button>
+      <button class="btn" id="btn-win-daily" hidden>🌼 Today’s Daily Garden</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="daily-win" hidden>
+    <div class="card daily-card">
+      <div class="card-emoji">🌼</div>
+      <h2 id="dw-title">Garden in bloom!</h2>
+      <p id="dw-sub">Daily Garden</p>
+      <div class="dw-stats">
+        <div><b id="dw-taps">0</b><small id="dw-taps-label">taps</small></div>
+        <div><b id="dw-undos">0</b><small id="dw-undos-label">undos</small></div>
+        <div><b id="dw-hints">0</b><small id="dw-hints-label">hints</small></div>
+      </div>
+      <p class="dw-picture" id="dw-picture" aria-hidden="true"></p>
+      <p class="dw-note" id="dw-best"></p>
+      <p class="dw-note strong" id="dw-friend" hidden></p>
+      <p class="dw-note strong" id="dw-streak" hidden></p>
+      <p class="coins-earned" id="dw-coins" hidden></p>
+      <p class="dw-note" id="dw-replay" hidden>You’d already bloomed this garden. Your first bloom is the one you share.</p>
+      <button class="btn primary" id="btn-share">Share with a friend</button>
+      <textarea class="share-text" id="share-text" readonly hidden aria-label="Message to send to a friend"></textarea>
+      <button class="btn" id="btn-daily-again" hidden>Play it again</button>
+      <button class="btn" id="btn-daily-back">Back to my gardens</button>
+      <p class="fineprint" id="dw-next"></p>
+    </div>
+  </div>
+
+  <div class="overlay" id="fail" hidden>
+    <div class="card">
+      <div class="card-emoji">🥀</div>
+      <h2>So close!</h2>
+      <p id="fail-sub">1 patch left bare</p>
+      <button class="btn primary" id="btn-fail-undo"><span id="fail-undo-label">Undo last tap</span></button>
+      <button class="btn" id="btn-fail-plant" hidden>🌸 <span id="fail-plant-label">Plant a flower and finish</span></button>
+      <button class="btn" id="btn-retry">Try again</button>
+    </div>
+  </div>
+
+  <div class="overlay ad-overlay" id="ad" hidden>
+    <div class="ad-box">
+      <div class="ad-tag" id="ad-tag">Rewarded ad</div>
+      <div class="ad-body">A video ad would play here</div>
+      <div class="ad-count" id="ad-count">3</div>
+      <button class="btn ad-skip" id="btn-ad-skip" hidden>Skip ›</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="offer" hidden>
+    <div class="card">
+      <div class="card-emoji">🌿</div>
+      <h2>Quiet Garden</h2>
+      <p>No ads anywhere, including hints and undo. One payment, yours to keep.</p>
+      <button class="btn primary" id="btn-offer-buy">Get Quiet Garden · <span id="offer-price">$3.99</span></button>
+      <button class="btn" id="btn-offer-skip">Not now</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="offer-thanks" hidden>
+    <div class="card">
+      <div class="card-emoji">🌱</div>
+      <h2>Thank you!</h2>
+      <p>Quiet Garden isn't available yet. This is an early demo, and your tap tells us it's wanted. Nothing was charged.</p>
+      <a class="btn" id="btn-offer-list" href="#" target="_blank" rel="noopener" hidden>Tell me when Vinewise launches</a>
+      <button class="btn primary" id="btn-offer-back">Back to the garden</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="menu" hidden>
+    <div class="card menu-card">
+      <h2>Menu</h2>
+      <label class="row"><span>Sound</span><input type="checkbox" id="opt-sound"></label>
+      <label class="row" id="row-ads"><span>Simulate ads</span><input type="checkbox" id="opt-ads"></label>
+      <h3>Levels</h3>
+      <div class="level-grid" id="level-grid"></div>
+      <button class="btn" id="btn-reset">Reset progress</button>
+      <button class="btn primary" id="btn-close-menu">Close</button>
+      <p class="fineprint">Early demo. It counts anonymous events (levels reached, days played, button taps) to learn what players want. No personal data is collected.</p>
+    </div>
+  </div>
+
+  <div class="overlay" id="shop" hidden>
+    <div class="card shop-card">
+      <h2>Garden Shop</h2>
+      <div class="quiet-card" id="quiet-card">
+        <span class="s-icon">🌿</span>
+        <span><b>Quiet Garden</b><small>No ads anywhere, ever, including hints. One payment, yours to keep.</small></span>
+        <button class="btn primary s-buy" id="btn-quiet">$3.99</button>
+      </div>
+      <p class="quiet-owned" id="quiet-owned" hidden>🌿 Quiet Garden is on. No ads, ever.</p>
+      <p class="shop-balance"><span class="coin" aria-hidden="true"></span> <span id="shop-coins">0</span> coins</p>
+      <div class="shop-items" id="shop-items"></div>
+      <h3>Get coins</h3>
+      <button class="btn" id="btn-coins-ad"><i class="ad">▶ AD</i><span id="coins-ad-label">Watch an ad: +25 coins</span></button>
+      <div class="shop-packs" id="shop-packs"></div>
+      <p class="fineprint">You earn 10 coins for every new garden and get a free helper every day. Every garden can be finished without helpers, and no garden is ever made harder to sell them.</p>
+      <button class="btn primary" id="btn-close-shop">Close</button>
+    </div>
+  </div>
+
+  <script src="js/config.js"></script>
+  <script src="js/telemetry.js"></script>
+  <script src="js/levels.js"></script>
+  <script src="js/level-data.js"></script>
+  <script src="js/daily-data.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>

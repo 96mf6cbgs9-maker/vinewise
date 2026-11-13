@@ -48,9 +48,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
 
 .topbar {
   display: grid;
-  grid-template-columns: 48px 48px minmax(0, 1fr) auto;
+  grid-template-columns: 48px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   padding-top: 12px;
 }
 
@@ -71,9 +71,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 #btn-sound.muted .ico-on { display: none; }
 #btn-sound.muted .ico-off { display: block; }
 
-.icon-btn .ico-back,
-#btn-daily.back .ico-daily { display: none; }
-#btn-daily.back .ico-back { display: block; }
 .dot {
   position: absolute;
   top: -4px;
@@ -429,11 +426,10 @@ a.btn { text-align: center; text-decoration: none; color: var(--ink); }
 
 /* Narrow phones (under 360 px): keep the top bar on one line. */
 @media (max-width: 359px) {
-  .topbar { grid-template-columns: 44px 44px minmax(0, 1fr) auto; gap: 4px; }
-  .icon-btn { width: 44px; height: 44px; }
-  .level-label { font-size: 19px; }
-  .level-label.small { font-size: 16px; }
-  .coin-pill { height: 44px; padding: 0 9px; gap: 5px; font-size: 15px; }
+  .topbar { gap: 8px; }
+  .level-label { font-size: 22px; }
+  .level-label.small { font-size: 18px; }
+  .coin-pill { padding: 0 10px; gap: 5px; font-size: 16px; }
 }
 
 @keyframes bump { 50% { transform: scale(1.12); } }
@@ -458,6 +454,274 @@ a.btn { text-align: center; text-decoration: none; color: var(--ink); }
 .ad-count { font-size: 64px; font-weight: 900; }
 .ad-skip { width: auto; margin: 16px auto 0; padding: 10px 22px; background: #333; color: #fff; box-shadow: none; }
 
+/* ---------- loading screen (only while the game starts) */
+
+.loading {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  overflow: hidden;
+  background: linear-gradient(180deg, var(--grass-hi), var(--grass) 45%, #4f9a35);
+  transition: opacity 0.45s ease;
+}
+.loading.leaving { opacity: 0; pointer-events: none; }
+/* Wide screens: the sharp art sits in a phone-shaped column with a soft blurred copy around it. */
+.splash-blur {
+  position: absolute;
+  inset: -60px;
+  background: url('../assets/home-bg.webp') center / cover no-repeat;
+  filter: blur(48px) saturate(0.85) brightness(0.9);
+  opacity: 0.8;
+}
+.splash-col {
+  position: relative;
+  height: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  overflow: hidden;
+}
+.splash-art {
+  position: absolute;
+  inset: 0;
+  /* Anchored to the top: on wide windows the crop comes off the bottom, so the big flower stays clear of the title. */
+  background: url('../assets/home-bg.webp') center top / cover no-repeat;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+.splash-art.ready { opacity: 1; }
+
+.game-title {
+  margin: 0;
+  text-align: center;
+  font-size: clamp(46px, 14vw, 68px);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 1px;
+  color: #fff;
+  /* A thick green outline drawn with shadows (works in every browser), then a deep drop. */
+  text-shadow:
+    4px 0 0 #2c7a31, -4px 0 0 #2c7a31, 0 4px 0 #2c7a31, 0 -4px 0 #2c7a31,
+    3px 3px 0 #2c7a31, -3px 3px 0 #2c7a31, 3px -3px 0 #2c7a31, -3px -3px 0 #2c7a31,
+    0 9px 0 #1d5a22, 0 14px 22px rgba(0, 0, 0, 0.3);
+  transform: rotate(-4deg);
+}
+.loading .game-title {
+  position: absolute;
+  top: calc(max(12px, env(safe-area-inset-top, 0px)) + 58px);
+  left: 0;
+  right: 0;
+  opacity: 0;
+}
+.loading.fonts .game-title { animation: title-in 0.7s cubic-bezier(0.2, 1.6, 0.4, 1) both; }
+
+.loader {
+  position: absolute;
+  left: 28px;
+  right: 28px;
+  bottom: calc(max(16px, env(safe-area-inset-bottom, 0px)) + 28px);
+  text-align: center;
+  transition: opacity 0.3s ease;
+}
+.loader.done { opacity: 0; }
+.loader-tip {
+  min-height: 2.7em;
+  margin: 0 0 12px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.35;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.3), 0 0 12px rgba(0, 0, 0, 0.25);
+}
+.loader-bar {
+  height: 26px;
+  padding: 4px;
+  border-radius: 99px;
+  background: rgba(20, 60, 20, 0.5);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.9), inset 0 2px 5px rgba(0, 0, 0, 0.35), 0 6px 14px rgba(0, 0, 0, 0.25);
+}
+.loader-fill {
+  position: relative;
+  width: 0;
+  min-width: 18px;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ffd34d, #ff8fb8);
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.5), inset 0 -3px 0 rgba(0, 0, 0, 0.1);
+}
+/* A flower rides the tip of the bar. */
+.loader-fill::after {
+  content: '\1F338';
+  position: absolute;
+  right: -14px;
+  top: 50%;
+  font-size: 30px;
+  line-height: 1;
+  transform: translateY(-52%);
+  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.3));
+  animation: spin-slow 3s linear infinite;
+}
+
+/* ---------- home screen: the same green as the levels, a little animated garden around the edges */
+
+.home {
+  position: fixed;
+  inset: 0;
+  z-index: 9; /* above the game, below cards (settings, shop, Daily Garden) so they open over it */
+  overflow: hidden;
+  background: radial-gradient(130% 90% at 50% 0%, var(--grass-hi) 0%, var(--grass) 40%, var(--grass-lo) 100%);
+  animation: fade-in 0.35s ease both;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+.home.leaving { opacity: 0; transform: scale(1.06); pointer-events: none; }
+.home-scene { position: absolute; inset: 0; width: 100%; height: 100%; }
+.home-col {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  padding: max(12px, env(safe-area-inset-top, 0px)) 16px calc(max(16px, env(safe-area-inset-bottom, 0px)) + 8px);
+}
+.home-top { display: flex; justify-content: space-between; align-self: stretch; }
+.home-title { margin-top: 6px; font-size: clamp(42px, 12.5vw, 60px); animation: title-in 0.7s cubic-bezier(0.2, 1.6, 0.4, 1) 0.1s both; }
+
+.home-play {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding-bottom: 4vh;
+}
+.home-play > * { animation: pop-in 0.45s cubic-bezier(0.2, 1.5, 0.4, 1) 0.15s both; }
+
+.level-plate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 6px 26px 8px;
+  border-radius: 20px;
+  background: rgba(255, 253, 247, 0.95);
+  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.16), 0 10px 20px rgba(0, 0, 0, 0.15);
+}
+.level-plate small { font-size: 12px; font-weight: 900; letter-spacing: 1.6px; text-transform: uppercase; opacity: 0.6; }
+.level-plate b { font-size: 36px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
+
+.go-btn {
+  position: relative;
+  width: min(270px, 74vw);
+  height: 100px;
+  border: 0;
+  border-radius: 36px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #ffe066 0%, #ffb52e 55%, #ff8a1f 100%);
+  box-shadow: 0 10px 0 #c75f0e, 0 18px 28px rgba(0, 0, 0, 0.3), inset 0 -7px 0 rgba(0, 0, 0, 0.08), inset 0 0 0 3px rgba(255, 255, 255, 0.35);
+  color: #fff;
+  font-size: 56px;
+  font-weight: 900;
+  letter-spacing: 4px;
+}
+.home-play .go-btn { animation: pop-in 0.45s cubic-bezier(0.2, 1.5, 0.4, 1) 0.22s both, go-breathe 1.6s ease-in-out 0.8s infinite; }
+.go-btn span {
+  position: relative;
+  z-index: 1;
+  text-shadow:
+    3px 0 0 #b35409, -3px 0 0 #b35409, 0 3px 0 #b35409, 0 -3px 0 #b35409,
+    2px 2px 0 #b35409, -2px 2px 0 #b35409, 2px -2px 0 #b35409, -2px -2px 0 #b35409,
+    0 6px 0 #8f4206;
+}
+/* Glossy highlight on the top half. */
+.go-btn::before {
+  content: '';
+  position: absolute;
+  left: 9%;
+  right: 9%;
+  top: 7px;
+  height: 40%;
+  border-radius: 99px;
+  background: linear-gradient(rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0));
+}
+/* A shine that sweeps across now and then. */
+.go-btn::after {
+  content: '';
+  position: absolute;
+  top: -10%;
+  bottom: -10%;
+  left: -60%;
+  width: 40%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+  transform: skewX(-20deg);
+  animation: go-shine 2.8s ease-in-out 1s infinite;
+}
+.go-btn:active, .go-btn.pressed, .home-play .go-btn.pressed {
+  transform: translateY(8px) scale(0.98);
+  box-shadow: 0 2px 0 #c75f0e, 0 6px 12px rgba(0, 0, 0, 0.25), inset 0 -7px 0 rgba(0, 0, 0, 0.08), inset 0 0 0 3px rgba(255, 255, 255, 0.35);
+  animation: none;
+}
+
+/* The shop and the Daily Garden, in the same white buttons as the level's toolbar. */
+.home-dock {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  /* Narrower than the screen and lifted off the bottom, so the flower bushes and grass show around it. */
+  width: min(300px, calc(100% - 56px));
+  margin-bottom: clamp(24px, 7vh, 64px);
+}
+.home-dock > * { animation: pop-in 0.45s cubic-bezier(0.2, 1.5, 0.4, 1) 0.3s both; }
+.home-tool { min-height: 76px; justify-content: center; }
+.home-tool .t-icon { font-size: 28px; line-height: 1.1; }
+.home-tool small { font-size: 11px; font-weight: 800; opacity: 0.65; margin-top: -2px; }
+.home-tool .dot { top: -5px; right: -5px; }
+.check {
+  position: absolute;
+  top: -7px;
+  right: -5px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #2f7d32;
+  box-shadow: 0 0 0 3px #fff;
+  color: #fff;
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+/* Petals that burst out of GO when it's tapped. */
+.burst {
+  position: fixed;
+  z-index: 40;
+  width: 16px;
+  height: 10px;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: burst 0.7s cubic-bezier(0.1, 0.7, 0.3, 1) forwards;
+}
+
+@keyframes title-in { from { opacity: 0; transform: rotate(-4deg) scale(0.6) translateY(-20px); } to { opacity: 1; transform: rotate(-4deg); } }
+@keyframes go-breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+@keyframes go-shine { 0%, 50% { left: -60%; } 80%, 100% { left: 130%; } }
+@keyframes spin-slow { to { transform: translateY(-52%) rotate(360deg); } }
+@keyframes burst {
+  from { opacity: 1; transform: translate(-50%, -50%) rotate(0deg) scale(1); }
+  to { opacity: 0; transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) rotate(var(--r)) scale(0.6); }
+}
+
+@media (max-height: 640px) {
+  .loading .game-title { top: calc(max(12px, env(safe-area-inset-top, 0px)) + 52px); font-size: 44px; }
+  .home-title { font-size: 40px; }
+  .go-btn { height: 84px; font-size: 48px; }
+  .level-plate b { font-size: 30px; }
+  .home-play { gap: 12px; }
+  .home-tool { min-height: 66px; }
+}
+
 /* ---------- motion */
 
 @keyframes fade-in { from { opacity: 0; } }
@@ -470,4 +734,7 @@ a.btn { text-align: center; text-decoration: none; color: var(--ink); }
 
 @media (prefers-reduced-motion: reduce) {
   .hand, .card, .overlay, .toast { animation: none; }
+  .go-btn, .go-btn::after, .loader-fill::after, .home-play > *, .burst { animation: none; }
+  .loading.fonts .game-title { animation: none; opacity: 1; }
+  .home, .home-title, .home-dock > * { animation: none; }
 }

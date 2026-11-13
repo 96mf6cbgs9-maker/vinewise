@@ -12,17 +12,57 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="preload" as="image" href="assets/home-bg.webp">
 </head>
 <body>
+  <!-- Loading screen: the artwork and a bar, only while the game starts. Shown before any script runs. -->
+  <div class="loading" id="loading">
+    <div class="splash-blur" aria-hidden="true"></div>
+    <div class="splash-col">
+      <div class="splash-art" id="splash-art" aria-hidden="true"></div>
+      <h1 class="game-title">Vinewise</h1>
+      <div class="loader" id="loader">
+        <p class="loader-tip" id="loader-tip">&nbsp;</p>
+        <div class="loader-bar" role="progressbar" aria-label="Loading"><div class="loader-fill" id="loader-fill"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Home: a green garden with tiny flowers, butterflies and bees (js/home.js), the play button and the shop. -->
+  <div class="home" id="home" hidden>
+    <canvas class="home-scene" id="home-scene" aria-hidden="true"></canvas>
+    <div class="home-col">
+      <div class="home-top">
+        <button class="icon-btn" id="home-menu" aria-label="Settings">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.6M12 18.6v2.6M21.2 12h-2.6M5.4 12H2.8M18.5 5.5l-1.8 1.8M7.3 16.7l-1.8 1.8M18.5 18.5l-1.8-1.8M7.3 7.3L5.5 5.5"/></svg>
+        </button>
+        <button class="coin-pill" id="home-coins" aria-label="Coins and shop">
+          <span class="coin" aria-hidden="true"></span><span id="home-coin-count">100</span>
+        </button>
+      </div>
+      <h1 class="game-title home-title">Vinewise</h1>
+      <div class="home-play" id="home-play">
+        <div class="level-plate"><small>Level</small><b id="home-level">1</b></div>
+        <button class="go-btn" id="btn-go"><span>GO</span></button>
+      </div>
+      <div class="home-dock" id="home-dock">
+        <button class="tool home-tool" id="home-shop">
+          <span class="t-icon" aria-hidden="true">🧺</span><span>Shop</span>
+        </button>
+        <button class="tool home-tool" id="home-daily">
+          <span class="t-icon" aria-hidden="true">🌼</span><span id="home-daily-label">Daily Garden</span>
+          <small id="home-daily-sub" hidden></small>
+          <i class="dot" id="home-daily-dot" hidden></i>
+          <i class="check" id="home-daily-check" hidden>✓</i>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <div id="app">
     <header class="topbar">
-      <button class="icon-btn" id="btn-menu" aria-label="Menu">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
-      </button>
-      <button class="icon-btn" id="btn-daily" aria-label="Daily Garden">
-        <svg class="ico-daily" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15.5" rx="3.5"/><path d="M8 3v3.5M16 3v3.5M3.5 9.8h17"/><g stroke="none" fill="#ff6fa3"><circle cx="12" cy="13.2" r="1.35"/><circle cx="12" cy="17" r="1.35"/><circle cx="10.1" cy="15.1" r="1.35"/><circle cx="13.9" cy="15.1" r="1.35"/></g><circle cx="12" cy="15.1" r="1.05" fill="#ffc23d" stroke="none"/></svg>
-        <svg class="ico-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg>
-        <i class="dot" id="daily-dot" hidden></i>
+      <button class="icon-btn" id="btn-home-level" aria-label="Home">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 11.2L12 4l8.5 7.2"/><path d="M6 9.6V20h12V9.6"/><path d="M10 20v-5.2h4V20"/></svg>
       </button>
       <div class="title">
         <div class="title-kicker" id="title-kicker" hidden></div>
@@ -92,7 +132,7 @@
       <button class="btn primary" id="btn-share">Share with a friend</button>
       <textarea class="share-text" id="share-text" readonly hidden aria-label="Message to send to a friend"></textarea>
       <button class="btn" id="btn-daily-again" hidden>Play it again</button>
-      <button class="btn" id="btn-daily-back">Back to my gardens</button>
+      <button class="btn" id="btn-daily-back">Home</button>
       <p class="fineprint" id="dw-next"></p>
     </div>
   </div>
@@ -139,7 +179,7 @@
 
   <div class="overlay" id="menu" hidden>
     <div class="card menu-card">
-      <h2>Menu</h2>
+      <h2>Settings</h2>
       <label class="row"><span>Sound</span><input type="checkbox" id="opt-sound"></label>
       <label class="row" id="row-ads"><span>Simulate ads</span><input type="checkbox" id="opt-ads"></label>
       <h3>Levels</h3>
@@ -175,6 +215,7 @@
   <script src="js/level-data.js"></script>
   <script src="js/daily-data.js"></script>
   <script src="js/audio.js"></script>
+  <script src="js/home.js"></script>
   <script src="js/game.js"></script>
 </body>
 </html>

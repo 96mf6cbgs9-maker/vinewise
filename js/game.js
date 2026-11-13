@@ -91,6 +91,7 @@
   let aiming = null; // the helper waiting for a target: 'seed' | 'shears' | 'breeze'
   let plants = new Map(); // patch index -> time a Flower Seed was planted there
   let mode = 'levels'; // levels | daily
+  let boardLevel = 0; // the numbered level on the board (0 = none yet)
   const daily = { key: '', friend: null }; // the Daily Garden on screen, and a friend's result from a shared link
   const view = { cs: 40, ox: 0, oy: 0, w: 0, h: 0, dpr: 1 };
 
@@ -154,6 +155,7 @@
 
   /** Puts a garden on the board, fresh: shared by numbered levels and the Daily Garden. */
   function loadGarden(lvl, salt) {
+    leaveHome();
     token++;
     level = lvl;
     board = new L.Board(level);
@@ -196,6 +198,7 @@
     prefs.maxLevel = Math.max(prefs.maxLevel, num);
     save();
     loadGarden(L.getLevel(num), num * 7919);
+    boardLevel = num;
     setTitle('Level ' + num);
     $('boosters').hidden = num < ECON.unlockLevel;
     updateDailyBtn();
@@ -262,9 +265,10 @@
     updateCoins();
   }
 
+  /** "Home" on the Daily Garden card. */
   function leaveDaily() {
     hide('daily-win');
-    if (mode === 'daily') startLevel(prefs.level);
+    if ($('home').hidden) showHome(); // otherwise the card was opened from home: stay there
   }
 
   /** Days in a row with that day's garden bloomed on the day, counting from today (or yesterday). */
@@ -277,21 +281,151 @@
   }
 
   function updateDailyBtn() {
-    const back = mode === 'daily';
-    const btn = $('btn-daily');
-    btn.classList.toggle('back', back);
-    btn.setAttribute('aria-label', back ? 'Back to my gardens' : 'Daily Garden');
-    $('daily-dot').hidden = back || !!prefs.daily.results[localKey()];
+    updateHomeDaily();
   }
 
-  function onDailyBtn() {
-    Sound.unlock();
-    Sound.click();
-    if (mode === 'daily') { leaveDaily(); return; }
+  /** Today's Daily Garden: its result card if it's already bloomed, otherwise the garden. */
+  function openTodaysDaily(src) {
     daily.key = localKey();
     daily.friend = null;
     if (prefs.daily.results[daily.key]) showDailyCard(false);
-    else startDaily(daily.key, { src: 'button' });
+    else startDaily(daily.key, { src });
+  }
+
+  // ------------------------------------------------------------ loading and home screens
+
+  const LOADING_TIPS = [
+    'Vines grow until something stops them. The order you tap is the puzzle.',
+    'Undo always takes you back to a garden that can still bloom.',
+    'Every garden can bloom. A solver checks each one.',
+    'A new Daily Garden every day, the same for everyone.',
+    'No timer, no lives. Take as long as you like.',
+  ];
+
+  /** The loading screen, only when the game starts: the bar fills as the artwork and the font
+   *  arrive (at least 1.4 s, at most 6 s), then `then` runs and the loading screen fades away. */
+  function runLoading(then) {
+    const splash = $('loading');
+    splash.hidden = false;
+    $('loader-tip').textContent = LOADING_TIPS[Math.floor(Math.random() * LOADING_TIPS.length)];
+    const MIN = 1400, MAX = 6000, start = performance.now();
+    const jobs = [
+      new Promise((res) => {
+        const img = new Image();
+        img.onload = () => { $('splash-art').classList.add('ready'); res(); };
+        img.onerror = res; // the green background still works without the art
+        img.src = 'assets/home-bg.webp';
+      }),
+      (document.fonts && document.fonts.load ? document.fonts.load('900 48px Nunito') : Promise.resolve())
+        .catch(() => {}).then(() => splash.classList.add('fonts')),
+    ];
+    let done = 0, shown = 0;
+    jobs.forEach((p) => p.then(() => done++));
+    // A timer rather than animation frames, so it still finishes if the page is in the background.
+    const timer = setInterval(() => {
+      const t = performance.now() - start;
+      const ready = (done === jobs.length || t > MAX) && t >= MIN;
+      const target = ready ? 1 : Math.min(0.94, 0.08 + 0.5 * (done / jobs.length) + 0.4 * Math.min(1, t / MIN));
+      shown += (target - shown) * 0.14;
+      if (ready && shown > 0.985) shown = 1;
+      $('loader-fill').style.width = (shown * 100).toFixed(1) + '%';
+      if (shown < 1) return;
+      clearInterval(timer);
+      splash.classList.add('fonts'); // show the title even if the font never arrived
+      $('loader').classList.add('done');
+      setTimeout(() => {
+        then();
+        // Fade the loading screen away over whatever comes next (home, or a friend's garden).
+        splash.classList.add('leaving');
+        setTimeout(() => { splash.hidden = true; }, 480);
+      }, 280);
+    }, 16);
+  }
+
+  function updateHomeDaily() {
+    const done = !!prefs.daily.results[localKey()];
+    const streak = dailyStreak();
+    $('home-daily-dot').hidden = done;
+    $('home-daily-check').hidden = !done;
+    $('home-daily-sub').hidden = !done;
+    $('home-daily-sub').textContent = streak >= 2 ? streak + ' days in a row' : 'Bloomed today';
+  }
+
+  /** The home screen: the play button with your level, the shop, the Daily Garden and settings. */
+  function showHome() {
+    const home = $('home');
+    const wasOpen = !home.hidden && !home.classList.contains('leaving');
+    home.classList.remove('leaving');
+    $('home-level').textContent = prefs.level;
+    $('btn-go').classList.remove('pressed');
+    updateHomeDaily();
+    updateCoins();
+    toastEl.hidden = true;
+    if (wasOpen) return;
+    // Re-show it so the pop-ins and the blooming garden play each time home opens.
+    home.hidden = true;
+    void home.offsetWidth;
+    home.hidden = false;
+    if (window.HomeScene) window.HomeScene.start($('home-scene'));
+  }
+
+  function leaveHome() {
+    const home = $('home');
+    if (home.hidden || home.classList.contains('leaving')) return;
+    home.classList.add('leaving');
+    setTimeout(() => {
+      if (!home.classList.contains('leaving')) return; // home was opened again meanwhile
+      home.hidden = true;
+      home.classList.remove('leaving');
+      if (window.HomeScene) window.HomeScene.stop();
+    }, 360);
+  }
+
+  /** The house button in a level: back home. The garden stays as it is, and GO carries on with it. */
+  function goHomeFromLevel() {
+    if (phase !== 'play') return; // not while a win or a loss is about to show
+    Sound.unlock();
+    Sound.click();
+    cancelAim();
+    hintSeed = -1;
+    showHome();
+  }
+
+  function openSettings() {
+    $('opt-ads').checked = prefs.ads;
+    buildLevelGrid();
+    show('menu');
+  }
+
+  /** GO: petals burst out of the button, then the player's level (or the one in progress) opens. */
+  function play() {
+    const btn = $('btn-go');
+    if (btn.classList.contains('pressed')) return;
+    Sound.unlock();
+    Sound.bloom(4);
+    vibrate(15);
+    btn.classList.add('pressed');
+    const r = btn.getBoundingClientRect();
+    const colors = ['#ff6fa3', '#ffc23d', '#a77bff', '#58b4ff', '#3ed6c0', '#ffffff'];
+    for (let j = 0; j < 16; j++) {
+      const p = document.createElement('i');
+      const a = (j / 16) * Math.PI * 2 + Math.random() * 0.3;
+      const d = 90 + Math.random() * 90;
+      p.className = 'burst';
+      p.style.left = r.left + r.width / 2 + 'px';
+      p.style.top = r.top + r.height / 2 + 'px';
+      p.style.background = colors[j % colors.length];
+      p.style.setProperty('--dx', Math.cos(a) * d * 1.4 + 'px');
+      p.style.setProperty('--dy', Math.sin(a) * d + 'px');
+      p.style.setProperty('--r', (Math.random() * 720 - 360) + 'deg');
+      document.body.appendChild(p);
+      setTimeout(() => p.remove(), 800);
+    }
+    setTimeout(() => {
+      // Carry on with the level on the board, if there is one in play; otherwise open the player's level.
+      if (mode === 'levels' && phase === 'play' && boardLevel === prefs.level) leaveHome();
+      else startLevel(prefs.level);
+    }, 240);
   }
 
   /** Records the first bloom of a day's garden. Returns the coins earned. */
@@ -607,6 +741,7 @@
 
   function updateCoins(bump) {
     $('coin-count').textContent = prefs.coins.toLocaleString();
+    $('home-coin-count').textContent = prefs.coins.toLocaleString();
     if (bump) {
       const pill = $('btn-coins');
       pill.classList.remove('bump');
@@ -1366,10 +1501,16 @@
   $('btn-hint').onclick = hint;
   $('btn-next').onclick = nextLevel;
   $('btn-retry').onclick = () => { hide('fail'); restart(); };
-  $('btn-daily').onclick = onDailyBtn;
   $('btn-share').onclick = shareDaily;
   $('btn-daily-back').onclick = () => { Sound.click(); leaveDaily(); };
   $('btn-daily-again').onclick = () => { Sound.click(); startDaily(daily.key, { src: 'again' }); };
+  // Home screen, and the house button that leads back to it from a level.
+  $('btn-go').onclick = play;
+  $('home-daily').onclick = () => { Sound.unlock(); Sound.click(); openTodaysDaily('home'); };
+  $('home-shop').onclick = () => { Sound.unlock(); Sound.click(); openShop(); };
+  $('home-coins').onclick = () => { Sound.unlock(); openShop(); };
+  $('home-menu').onclick = () => { Sound.unlock(); Sound.click(); openSettings(); };
+  $('btn-home-level').onclick = goHomeFromLevel;
   // From the level's win card: move on to the next level, but play today's Daily Garden first.
   $('btn-win-daily').onclick = () => {
     hide('win');
@@ -1385,11 +1526,6 @@
   $('btn-coins-ad').onclick = adForCoins;
   $('btn-quiet').onclick = buyQuiet;
   for (const id of Object.keys(ITEMS)) $('bst-' + id).onclick = () => onBooster(id);
-  $('btn-menu').onclick = () => {
-    $('opt-ads').checked = prefs.ads;
-    buildLevelGrid();
-    show('menu');
-  };
   $('btn-close-menu').onclick = () => hide('menu');
   $('opt-sound').onchange = (e) => { prefs.sound = e.target.checked; save(); applySound(); };
   $('opt-ads').onchange = (e) => { prefs.ads = e.target.checked; save(); };
@@ -1417,7 +1553,7 @@
     prefs.daily = { results: {}, run: null };
     save();
     hide('menu');
-    startLevel(1);
+    showHome(); // settings open from home, so stay there, now at level 1
   };
 
   if (window.ResizeObserver) new ResizeObserver(layout).observe(stage);
@@ -1432,22 +1568,31 @@
     }
     if (window.Telemetry) window.Telemetry.sessionStart();
     const link = linkedDaily();
-    if (link) {
+    requestAnimationFrame(frame);
+    if (!link && data && data.level) {
+      // The artifact was updated mid-game: skip the loading and home screens and carry on.
+      $('loading').hidden = true;
+      if (data.daily && !isNaN(L.dayNumber(data.daily))) startDaily(data.daily, { retry: true });
+      else startLevel(data.level);
+      replay(data.history);
+      return;
+    }
+    runLoading(() => {
+      if (!link) { showHome(); return; }
+      // A friend's shared garden: straight into it, no home screen in the way.
       startDaily(link.key, { src: 'link', friend: link.friend });
       // Already bloomed that day's garden: show how you compare straight away.
       if (prefs.daily.results[link.key]) showDailyCard(false);
-    } else if (data && data.daily && !isNaN(L.dayNumber(data.daily))) {
-      startDaily(data.daily, { retry: true }); // the artifact was updated mid-garden: carry on
-    } else {
-      startLevel((data && data.level) || prefs.level);
-    }
-    if (!link && data && Array.isArray(data.history)) {
+    });
+  }
+
+  function replay(taps) {
+    if (Array.isArray(taps)) {
       // Replaying the taps of an attempt in progress shouldn't count them twice.
       const run = prefs.daily.run, before = run && Object.assign({}, run);
-      for (const i of data.history) if (phase === 'play' && i < board.seeds.length && !board.isTapped(i)) tapSeed(i);
+      for (const i of taps) if (phase === 'play' && i < board.seeds.length && !board.isTapped(i)) tapSeed(i);
       if (before) { prefs.daily.run = before; save(); }
     }
-    requestAnimationFrame(frame);
   }
   const hot = window.claude && window.claude.hot;
   if (hot && hot.snapshot) {
@@ -1464,10 +1609,13 @@
   window.Bloom = {
     startLevel,
     startDaily,
+    showHome,
+    play,
     showDailyCard,
     shareMessage: () => prefs.daily.results[daily.key] && shareMessage(daily.key, prefs.daily.results[daily.key]),
     shareLink: () => prefs.daily.results[daily.key] && shareLink(daily.key, prefs.daily.results[daily.key]),
     get mode() { return mode; },
+    get view() { return Object.assign({}, view); }, // where the board is drawn (for test screenshots)
     get daily() { return Object.assign({ run: prefs.daily.run, results: prefs.daily.results }, daily); },
     render, // draw one frame by hand (e.g. when the tab is hidden and rAF is paused)
     tapSeed: (i) => phase === 'play' && tapSeed(i),

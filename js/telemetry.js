@@ -89,7 +89,7 @@
     boosterUsed(item) { send('booster_used', { item }); },
     coinPackTap(pack) { send('coin_pack_tap', { item: pack }); },
     shopOpen() { send('shop_open'); },
-    // Daily Garden. Where it was started from: button, link (a friend's share), win (the level's win card), again.
+    // Daily Garden. Where it was started from: button (in the game), home, link (a friend's share), win (the level's win card), again.
     dailyStart(from) { send('daily_start', { item: from }); },
     dailyWin(key, perfect) { once('daily-' + key, 'daily_win', { item: perfect ? 'perfect' : 'bloom' }); },
     // How it was shared: share (the phone's share sheet), copy, manual (copied by hand).
